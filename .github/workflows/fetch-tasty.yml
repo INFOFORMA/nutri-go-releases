@@ -1,0 +1,64 @@
+name: Fetch Tasty recipes
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'   # Tous les dimanches à 4h UTC
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Tasty recipes
+        env:
+          TASTY_API_KEY: ${{ secrets.TASTY_API_KEY }}
+        run: |
+          if [ -z "$TASTY_API_KEY" ]; then
+            echo "::error::TASTY_API_KEY secret manquant"
+            exit 1
+          fi
+
+          mkdir -p data
+          TAGS=(french italian mexican asian indian mediterranean vegetarian vegan \
+                under_30_minutes healthy comfort_food breakfast lunch dinner dessert)
+
+          echo "{ \"updated_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"recipes\": [" > data/tasty-recipes.json
+          first=1
+          for tag in "${TAGS[@]}"; do
+            echo "Fetching tag: $tag"
+            resp=$(curl -s --max-time 30 \
+              -H "x-rapidapi-host: tasty.p.rapidapi.com" \
+              -H "x-rapidapi-key: $TASTY_API_KEY" \
+              "https://tasty.p.rapidapi.com/recipes/list?from=0&size=10&tags=$tag")
+            if ! echo "$resp" | jq -e '.results' > /dev/null 2>&1; then continue; fi
+            count=$(echo "$resp" | jq '.results | length')
+            for i in $(seq 0 $((count - 1))); do
+              if [ $first -eq 0 ]; then echo "," >> data/tasty-recipes.json; fi
+              echo "$resp" | jq -c ".results[$i]" >> data/tasty-recipes.json
+              first=0
+            done
+          done
+          echo "] }" >> data/tasty-recipes.json
+          jq '.' data/tasty-recipes.json > data/tasty-recipes.tmp.json
+          mv data/tasty-recipes.tmp.json data/tasty-recipes.json
+          echo "$(jq '.recipes | length' data/tasty-recipes.json) recettes collectees"
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/tasty-recipes.json
+          if git diff --cached --quiet; then
+            echo "Aucun changement"
+          else
+            git commit -m "data: refresh Tasty recipes ($(date -u +%Y-%m-%d))"
+            for i in 1 2 3; do
+              git pull --rebase origin main || true
+              if git push; then break; fi
+              sleep 5
+            done
+          fi
