@@ -1,1 +1,1 @@
-{"versionCode":16,"versionName":"1.1.0","apkUrl":"https://github.com/INFOFORMA/nutri-go-releases/releases/download/v16/nutrigou.apk","releaseNotes":"Tasty FR pre-traduit cote serveur, demarrage instantane. ML Kit reste pour MealDB."}
+{"versionCode":17,"versionName":"1.1.0","apkUrl":"https://github.com/INFOFORMA/nutri-go-releases/releases/download/v17/nutrigou.apk","releaseNotes":"Fix traduction : nouveau seed REPLACE qui remplace les recettes anglaises par les francaises (les favoris sont preserves)"}
