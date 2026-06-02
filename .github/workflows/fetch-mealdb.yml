@@ -1,0 +1,125 @@
+name: Fetch & translate MealDB recipes
+
+on:
+  schedule:
+    - cron: '0 5 * * 0'   # Tous les dimanches à 5h UTC (après Tasty)
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Argos Translate (EN → FR)
+        run: |
+          pip install --quiet argostranslate
+          python <<'PY'
+          import argostranslate.package, argostranslate.translate
+          argostranslate.package.update_package_index()
+          available = argostranslate.package.get_available_packages()
+          pkg = next(p for p in available if p.from_code == "en" and p.to_code == "fr")
+          argostranslate.package.install_from_path(pkg.download())
+          print("✅ Modèle EN→FR installé")
+          PY
+
+      - name: Fetch MealDB + translate
+        run: |
+          mkdir -p data
+          python <<'PY'
+          import json, urllib.request, argostranslate.translate
+
+          # Translator EN -> FR
+          langs = argostranslate.translate.get_installed_languages()
+          en = next(l for l in langs if l.code == "en")
+          fr = next(l for l in langs if l.code == "fr")
+          translator = en.get_translation(fr)
+
+          def t(text):
+              if not text or not isinstance(text, str): return text
+              try: return translator.translate(text)
+              except Exception: return text
+
+          def fetch_json(url):
+              try:
+                  with urllib.request.urlopen(url, timeout=30) as r:
+                      return json.loads(r.read().decode())
+              except Exception as e:
+                  print(f"  fetch failed {url}: {e}")
+                  return None
+
+          BASE = "https://www.themealdb.com/api/json/v1/1"
+
+          # 1) Lister catégories + zones
+          cats = fetch_json(f"{BASE}/list.php?c=list") or {"meals":[]}
+          areas = fetch_json(f"{BASE}/list.php?a=list") or {"meals":[]}
+          categories = [m["strCategory"] for m in (cats.get("meals") or [])]
+          areas_list = [m["strArea"] for m in (areas.get("meals") or [])]
+          print(f"Categories: {len(categories)}, Areas: {len(areas_list)}")
+
+          # 2) Récupérer tous les IDs uniques
+          all_ids = set()
+          for cat in categories:
+              r = fetch_json(f"{BASE}/filter.php?c={urllib.parse.quote(cat)}")
+              if r and r.get("meals"):
+                  for m in r["meals"]: all_ids.add(m["idMeal"])
+          for area in areas_list:
+              r = fetch_json(f"{BASE}/filter.php?a={urllib.parse.quote(area)}")
+              if r and r.get("meals"):
+                  for m in r["meals"]: all_ids.add(m["idMeal"])
+          print(f"Total unique IDs: {len(all_ids)}")
+
+          # 3) Lookup chaque recette
+          recipes = []
+          for i, mid in enumerate(sorted(all_ids), 1):
+              if i % 25 == 0: print(f"  Fetched {i}/{len(all_ids)}")
+              r = fetch_json(f"{BASE}/lookup.php?i={mid}")
+              if not r or not r.get("meals"): continue
+              meal = r["meals"][0]
+              if meal: recipes.append(meal)
+          print(f"Fetched {len(recipes)} recettes")
+
+          # 4) Traduction
+          import urllib.parse
+          for i, m in enumerate(recipes, 1):
+              if i % 25 == 0: print(f"  Translated {i}/{len(recipes)}")
+              if m.get("strMeal"): m["strMeal"] = t(m["strMeal"])
+              if m.get("strInstructions"): m["strInstructions"] = t(m["strInstructions"])
+              if m.get("strCategory"): m["strCategory_fr"] = t(m["strCategory"])
+              if m.get("strArea"): m["strArea_fr"] = t(m["strArea"])
+              for k in range(1, 21):
+                  ing_key = f"strIngredient{k}"
+                  if m.get(ing_key): m[ing_key] = t(m[ing_key])
+
+          dump = {
+              "updated_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+              "meals": recipes
+          }
+          with open("data/mealdb-recipes.json", "w", encoding="utf-8") as f:
+              json.dump(dump, f, ensure_ascii=False, indent=2)
+          print(f"✅ {len(recipes)} recettes MealDB traduites")
+          PY
+          wc -c data/mealdb-recipes.json
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/mealdb-recipes.json
+          if git diff --cached --quiet; then
+            echo "Aucun changement"
+          else
+            git commit -m "data: refresh MealDB recipes FR ($(date -u +%Y-%m-%d))"
+            for i in 1 2 3; do
+              git pull --rebase origin main || true
+              if git push; then break; fi
+              sleep 5
+            done
+          fi
