@@ -1,4 +1,4 @@
-name: Fetch Tasty recipes
+name: Fetch & translate Tasty recipes
 
 on:
   schedule:
@@ -13,6 +13,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Python (pour la traduction Argos)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Argos Translate (EN → FR, offline)
+        run: |
+          pip install --quiet argostranslate
+          python <<'PY'
+          import argostranslate.package, argostranslate.translate
+          argostranslate.package.update_package_index()
+          available = argostranslate.package.get_available_packages()
+          pkg = next(p for p in available if p.from_code == "en" and p.to_code == "fr")
+          path = pkg.download()
+          argostranslate.package.install_from_path(path)
+          print("✅ Modèle EN→FR installé")
+          PY
+
       - name: Fetch Tasty recipes
         env:
           TASTY_API_KEY: ${{ secrets.TASTY_API_KEY }}
@@ -26,7 +44,7 @@ jobs:
           TAGS=(french italian mexican asian indian mediterranean vegetarian vegan \
                 under_30_minutes healthy comfort_food breakfast lunch dinner dessert)
 
-          echo "{ \"updated_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"recipes\": [" > data/tasty-recipes.json
+          echo "{ \"updated_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"recipes\": [" > data/tasty-raw.json
           first=1
           for tag in "${TAGS[@]}"; do
             echo "Fetching tag: $tag"
@@ -37,15 +55,63 @@ jobs:
             if ! echo "$resp" | jq -e '.results' > /dev/null 2>&1; then continue; fi
             count=$(echo "$resp" | jq '.results | length')
             for i in $(seq 0 $((count - 1))); do
-              if [ $first -eq 0 ]; then echo "," >> data/tasty-recipes.json; fi
-              echo "$resp" | jq -c ".results[$i]" >> data/tasty-recipes.json
+              if [ $first -eq 0 ]; then echo "," >> data/tasty-raw.json; fi
+              echo "$resp" | jq -c ".results[$i]" >> data/tasty-raw.json
               first=0
             done
           done
-          echo "] }" >> data/tasty-recipes.json
-          jq '.' data/tasty-recipes.json > data/tasty-recipes.tmp.json
-          mv data/tasty-recipes.tmp.json data/tasty-recipes.json
-          echo "$(jq '.recipes | length' data/tasty-recipes.json) recettes collectees"
+          echo "] }" >> data/tasty-raw.json
+          jq '.' data/tasty-raw.json > data/tasty-raw.pretty.json
+          mv data/tasty-raw.pretty.json data/tasty-raw.json
+          echo "$(jq '.recipes | length' data/tasty-raw.json) recettes collectees"
+
+      - name: Traduire les recettes en français (Argos)
+        run: |
+          python <<'PY'
+          import json, argostranslate.translate
+
+          # Charger le translator EN → FR
+          langs = argostranslate.translate.get_installed_languages()
+          en = next(l for l in langs if l.code == "en")
+          fr = next(l for l in langs if l.code == "fr")
+          translator = en.get_translation(fr)
+
+          def t(text):
+              """Traduit un texte EN -> FR (silencieux si erreur)."""
+              if not text or not isinstance(text, str): return text
+              try:
+                  return translator.translate(text)
+              except Exception:
+                  return text
+
+          with open("data/tasty-raw.json") as f:
+              data = json.load(f)
+
+          total = len(data["recipes"])
+          for i, r in enumerate(data["recipes"], 1):
+              if i % 20 == 0: print(f"  → {i}/{total}")
+              if r.get("name"): r["name"] = t(r["name"])
+              if r.get("description"): r["description"] = t(r["description"])
+              for inst in r.get("instructions") or []:
+                  if inst.get("display_text"): inst["display_text"] = t(inst["display_text"])
+              for sec in r.get("sections") or []:
+                  if sec.get("name"): sec["name"] = t(sec["name"])
+                  for comp in sec.get("components") or []:
+                      if comp.get("raw_text"): comp["raw_text"] = t(comp["raw_text"])
+                      ing = comp.get("ingredient")
+                      if ing:
+                          if ing.get("name"): ing["name"] = t(ing["name"])
+                          if ing.get("display_singular"): ing["display_singular"] = t(ing["display_singular"])
+              for tag in r.get("tags") or []:
+                  if tag.get("display_name"): tag["display_name"] = t(tag["display_name"])
+
+          with open("data/tasty-recipes.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+
+          print(f"✅ {total} recettes traduites en français")
+          PY
+          rm -f data/tasty-raw.json
+          wc -c data/tasty-recipes.json
 
       - name: Commit & push
         run: |
@@ -55,7 +121,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Aucun changement"
           else
-            git commit -m "data: refresh Tasty recipes ($(date -u +%Y-%m-%d))"
+            git commit -m "data: refresh Tasty recipes traduites FR ($(date -u +%Y-%m-%d))"
             for i in 1 2 3; do
               git pull --rebase origin main || true
               if git push; then break; fi
