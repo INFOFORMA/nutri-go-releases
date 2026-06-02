@@ -1,1 +1,7 @@
-{"versionCode":25,"versionName":"1.1.0","apkUrl":"https://github.com/INFOFORMA/nutri-go-releases/releases/download/v25/nutrigou.apk","releaseNotes":"Nouveau bouton dans Profil pour vérifier les mises à jour manuellement et forcer le téléchargement (plus besoin de force-stop)."}
+{
+  "versionCode": 27,
+  "versionName": "1.0.27",
+  "apkUrl": "https://github.com/INFOFORMA/nutri-go-releases/releases/download/v1.0.27/NutriGo-v27.apk",
+  "releaseNotes": "v1.0.27 — Ajout au planning depuis chaque recette + refonte page planning (header hero, day selector, cards modernes)",
+  "mandatory": false
+}
