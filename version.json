@@ -1,7 +1,1 @@
-{
-  "versionCode": 29,
-  "versionName": "1.0.29",
-  "apkUrl": "https://github.com/INFOFORMA/nutri-go-releases/releases/download/v1.0.29/NutriGo-v29.apk",
-  "releaseNotes": "v1.0.29 - Wizard planning refondu en 6 etapes engageantes",
-  "mandatory": false
-}
+{"versionCode":30,"versionName":"1.0.30","apkUrl":"https://github.com/INFOFORMA/nutri-go-releases/releases/download/v1.0.30/NutriGo-v30.apk","releaseNotes":"v1.0.30 - Refonte Mes recettes 3 onglets + editeur complet","mandatory":false}
