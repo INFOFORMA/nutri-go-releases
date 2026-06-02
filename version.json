@@ -1,7 +1,7 @@
 {
-  "versionCode": 27,
-  "versionName": "1.0.27",
-  "apkUrl": "https://github.com/INFOFORMA/nutri-go-releases/releases/download/v1.0.27/NutriGo-v27.apk",
-  "releaseNotes": "v1.0.27 — Ajout au planning depuis chaque recette + refonte page planning (header hero, day selector, cards modernes)",
+  "versionCode": 28,
+  "versionName": "1.0.28",
+  "apkUrl": "https://github.com/INFOFORMA/nutri-go-releases/releases/download/v1.0.28/NutriGo-v28.apk",
+  "releaseNotes": "v1.0.28 - Journal repas avec photo + kcal reelles + notation",
   "mandatory": false
 }
