@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-13T11:09:01.842760Z",
+  "updated_at": "2026-09-20T10:42:48.766865Z",
   "meals": [
     {
       "idMeal": "52764",
@@ -45750,13 +45750,13 @@
     },
     {
       "idMeal": "53580",
-      "strMeal": "Bousse saine Jaggery Modak",
+      "strMeal": "Biss Jaggery Modak",
       "strMealAlternate": null,
       "strCategory": "Dessert",
       "strArea": null,
       "strCountry": "India",
-      "strInstructions": "# Modak sain Jaggery\n\n**Ajouté par :** Ameya\n\n\n\n1. Prenez la noix de coco râpée dans un bol.\n2. Ajouter jaggery à la noix de coco râpée.\n3. Mélanger soigneusement la noix de coco et le jaggery jusqu'à ce qu'ils soient uniformément combinés.\n4. Prenez de petites portions du mélange et formez-les en modaks en utilisant vos mains ou un moule modak.\n5. Répéter jusqu'à ce que tout le mélange ait été utilisé.\n6. Servir les modaks de noix de coco fraîchement préparés.\n",
-      "strMealThumb": "https://www.themealdb.com/images/media/meals/h8v7e91787756994.jpg",
+      "strInstructions": "Jaggery Modak\n\n1. Prenez la noix de coco râpée dans un bol.\n2. Ajouter jaggery à la noix de coco râpée.\n3. Mélanger soigneusement la noix de coco et le jaggery jusqu'à ce qu'ils soient uniformément combinés.\n4. Prenez de petites portions du mélange et formez-les en modaks en utilisant vos mains ou un moule modak.\n5. Répéter jusqu'à ce que tout le mélange ait été utilisé.\n6. Servir les modaks de noix de coco fraîchement préparés.\n",
+      "strMealThumb": "https://www.themealdb.com/images/media/meals/gl92ih1789802951.jpg",
       "strTags": null,
       "strYoutube": "",
       "strIngredient1": "Flèches de coco",
